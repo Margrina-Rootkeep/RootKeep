@@ -93,6 +93,42 @@ Then grant apps in the Superuser tab as normal. (The `selfheal-v2` boot does thi
 
 ---
 
+## Flash order (full sequence)
+
+Each line says **which Odin slot** the file goes in. Golden rule: **one Odin operation per step, and only the listed file(s) loaded** — never mix steps, and never put two boot images in AP at once.
+
+1. **Stock Android 10 firmware** — *only if you want a clean slate.* Load the 4 firmware files in one Odin flash: `BL_…` → **BL**, `AP_…` → **AP**, `CP_…` → **CP**, `HOME_CSC_…` → **CSC** (use **HOME_CSC** to keep data; plain **CSC** wipes it). Start → PASS → boot into Android once to confirm stock is healthy. *(Skip entirely if the phone already boots Android 10.)*
+2. **Root — `Margrinakernel-boot.tar.md5`** → **AP** *(this file ALONE, nothing in BL/CP/CSC)*. Start → PASS → reboot. If **"Verification failed"** appears, see the next section.
+3. **Install the app — `RootKeep-app-v0.5.apk`** *(not a flash)* — tap it on the phone, or `adb install -r RootKeep-app-v0.5.apk`.
+4. **Grant / bootstrap** *(not a flash)* — open RootKeep → **Superuser** → **Allow** on *"Shell (adb / rksu)"* for ADB root. If grants don't save right after a clean flash: `adb shell mkdir -p /data/local/tmp/rk` first.
+5. **(Optional) TWRP** — `twrp-…-recovery.img.tar` → **AP**, or via the app's **Flash** tab (auto-targets RECOVERY). Independent of root; only if you want custom recovery.
+
+If the phone already boots Android 10, you only need **2 → 3 → 4**.
+
+---
+
+## "Verification failed" — what it means and how to avoid losing data
+
+> *"Unable to restart your device. The integrity verification has failed. You need to reset your device to factory default settings. This will erase all your data."*
+
+This is **not** a skippable prompt — it's the bootloader's encryption gate. On this S9 (Android 10, **file-based encryption**), the keys that decrypt `/data` are tied to the **verified-boot state**. When the running boot image doesn't match the state `/data` was encrypted under, the phone literally **cannot decrypt `/data`**, so it offers only **RESET** (which wipes `/data` to clear the mismatch). There is no data-preserving "ignore" — the data genuinely can't be opened.
+
+**Key fact:** after a wipe, `/data` is re-encrypted **on the next boot, under whichever boot image is running then.** So moving `/data` from the stock state to the Margrinakernel state costs **exactly one** wipe — the goal is to not wipe *twice*.
+
+| What you do | Result |
+|---|---|
+| Reset → **boot into stock Android** → *then* flash Margrinakernel | `/data` re-encrypts under **stock** → Margrinakernel mismatches → **Verification failed again** ❌ (two wipes for nothing) |
+| Reset → **go straight to Download mode, do NOT boot the OS** → flash Margrinakernel → boot | `/data` encrypts fresh under **Margrinakernel** → **no screen** ✅ |
+| Flash Margrinakernel → screen appears → tap **RESET** | reboots straight into Margrinakernel, `/data` set up fresh → clean, and it won't return ✅ |
+
+**Recommended:** just flash Margrinakernel and tap **RESET** when the screen appears — that's the one required wipe, and normal reboots afterward won't show it again.
+
+**Rescue without wiping (worth a try first):** re-flash the **exact** boot image the phone last booted successfully with (usually `Margrinakernel-boot.tar.md5`). If `/data` is still encrypted under that state, it boots with no data loss. If it still fails, `/data` is tied to a different state and the reset is unavoidable.
+
+**Stop it forever:** flash **TWRP**, run `multidisabler-samsung-3.1-keep…zip`, and format data once. That leaves `/data` **unencrypted**, so this mismatch can never trigger again on any boot flash — one format up front, no dance afterward.
+
+---
+
 ## Notes & caveats
 
 - **`Margrinakernel-selfheal-v2`** installs `su` and repairs its config *after boot* (triggered by the app on first launch), avoiding the boot-time operation that could hang the phone. It is **statically verified but flash it only when you're ready to test** — keep the known-good image as your fallback.
