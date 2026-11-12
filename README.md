@@ -11,9 +11,8 @@ Unlike Magisk (which uses a systemless overlay), RootKeep is its own custom kern
 | File | What it is |
 |---|---|
 | `README.md` | This guide. |
-| `RootKeep-app-v0.5.apk` | The RootKeep manager app (`com.rootkeep`, v0.5-dev). Install on the phone. |
-| `Margrinakernel-boot.tar.md5` | **Known-good boot image.** Flash this to get root. Your safe fallback. |
-| `Margrinakernel-selfheal-v2.tar.md5` | **Improved boot image** that re-installs `su` and recreates its config automatically after a clean/factory flash. (Statically verified; flash the known-good one first if unsure.) |
+| `RootKeep-app-v0.7.apk` | The RootKeep manager app (`com.rootkeep`, v0.5-dev). Install on the phone. |
+| `Margrinakernel-selfheal-v3.tar.md5` | **Known-good boot image.** Flash this to get root. Your safe fallback. |
 
 Both `.tar.md5` files are **Odin AP** images and contain **only the `boot` partition** (kernel + ramdisk). They do **not** wipe your data.
 
@@ -40,17 +39,17 @@ The **app** talks to the daemon to show root status, grant/deny root per app, in
 1. Power the phone **off**.
 2. Enter **Download mode**: hold **Volume Down + Bixby**, then plug in USB, then press **Volume Up**.
 3. Open **Odin3**. The top-left box shows **ID:COM** highlighted = phone detected.
-4. Click **AP** → select **`Margrinakernel-boot.tar.md5`**.
+4. Click **AP** → select **`Margrinakernel-selfheal-v3.tar.md5`**.
 5. Leave **BL / CP / CSC / USERDATA empty**. Options → **Auto Reboot ON**, **Re-Partition OFF**.
 6. Click **Start**. Wait for **PASS!** The phone reboots.
 
 > ⚠️ **Only ever flash ONE boot image to AP.** `Margrinakernel-boot` and `Margrinakernel-selfheal-v2` are *alternatives*, not layers — flashing one replaces the other. Never flash old `RootKeep-shim-TEST-v*.tar` or `vendor-permissive` files: they use the stock kernel and will break root.
 
 ### 2. Install the app
-Copy `RootKeep-app-v0.5.apk` to the phone and tap it (allow "install unknown apps"), **or** over adb:
+Copy `RootKeep-app-v0.7.apk` to the phone and tap it (allow "install unknown apps"), **or** over adb:
 
 ```
-adb install -r RootKeep-app-v0.5.apk
+adb install -r RootKeep-app-v0.7.apk
 ```
 
 ### 3. Verify root
@@ -82,7 +81,7 @@ adb shell su -c id          # -> uid=0(root)
 
 ## Recovery (if something goes wrong)
 
-- **A boot image hangs at the Samsung logo** → you're *not* bricked. Re-enter Download mode and flash **`Margrinakernel-boot.tar.md5`** (the known-good one) to AP. No data loss.
+- **A boot image hangs at the Samsung logo** → you're *not* bricked. Re-enter Download mode and flash **`Margrinakernel-selfheal-v3.tar.md5`** (the known-good one) to AP. No data loss.
 - Root works but **can't grant apps** right after a clean flash → the daemon's config dir was wiped. Fix over adb (no root needed — `shell` owns `/data/local/tmp`):
 
 ```
@@ -98,8 +97,8 @@ Then grant apps in the Superuser tab as normal. (The `selfheal-v2` boot does thi
 Each line says **which Odin slot** the file goes in. Golden rule: **one Odin operation per step, and only the listed file(s) loaded** — never mix steps, and never put two boot images in AP at once.
 
 1. **Stock Android 10 firmware** — *only if you want a clean slate.* Load the 4 firmware files in one Odin flash: `BL_…` → **BL**, `AP_…` → **AP**, `CP_…` → **CP**, `HOME_CSC_…` → **CSC** (use **HOME_CSC** to keep data; plain **CSC** wipes it). Start → PASS → boot into Android once to confirm stock is healthy. *(Skip entirely if the phone already boots Android 10.)*
-2. **Root — `Margrinakernel-boot.tar.md5`** → **AP** *(this file ALONE, nothing in BL/CP/CSC)*. Start → PASS → reboot. If **"Verification failed"** appears, see the next section.
-3. **Install the app — `RootKeep-app-v0.5.apk`** *(not a flash)* — tap it on the phone, or `adb install -r RootKeep-app-v0.5.apk`.
+2. **Root — `Margrinakernel-selfheal-v3.tar.md5`** → **AP** *(this file ALONE, nothing in BL/CP/CSC)*. Start → PASS → reboot. If **"Verification failed"** appears, see the next section.
+3. **Install the app — `RootKeep-app-v0.7.apk`** *(not a flash)* — tap it on the phone, or `adb install -r RootKeep-app-v0.7.apk`.
 4. **Grant / bootstrap** *(not a flash)* — open RootKeep → **Superuser** → **Allow** on *"Shell (adb / rksu)"* for ADB root. If grants don't save right after a clean flash: `adb shell mkdir -p /data/local/tmp/rk` first.
 5. **(Optional) TWRP** — `twrp-…-recovery.img.tar` → **AP**, or via the app's **Flash** tab (auto-targets RECOVERY). Independent of root; only if you want custom recovery.
 
@@ -123,7 +122,7 @@ This is **not** a skippable prompt — it's the bootloader's encryption gate. On
 
 **Recommended:** just flash Margrinakernel and tap **RESET** when the screen appears — that's the one required wipe, and normal reboots afterward won't show it again.
 
-**Rescue without wiping (worth a try first):** re-flash the **exact** boot image the phone last booted successfully with (usually `Margrinakernel-boot.tar.md5`). If `/data` is still encrypted under that state, it boots with no data loss. If it still fails, `/data` is tied to a different state and the reset is unavoidable.
+**Rescue without wiping (worth a try first):** re-flash the **exact** boot image the phone last booted successfully with (usually `Margrinakernel-selfheal-v3.tar.md5`). If `/data` is still encrypted under that state, it boots with no data loss. If it still fails, `/data` is tied to a different state and the reset is unavoidable.
 
 **Stop it forever:** flash **TWRP**, run `multidisabler-samsung-3.1-keep…zip`, and format data once. That leaves `/data` **unencrypted**, so this mismatch can never trigger again on any boot flash — one format up front, no dance afterward.
 
